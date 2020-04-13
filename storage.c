@@ -37,6 +37,7 @@ storage_stat(const char* path, struct stat* st)
     printf("+ storage_stat(%s)\n", path);
     int inum = tree_lookup(path);
     if (inum < 0) {
+        printf(" ======= returning inum of %d\n", inum);
         return inum;
     }
 

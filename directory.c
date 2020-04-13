@@ -52,8 +52,10 @@ lookup(dirent *paren_dir, char *current)
 {
     for(int i = 0; i < 256; i++)
     {
+        printf(" ==== paren dir name = %s, current dir = %s\n", paren_dir->name, current);
         if(streq(paren_dir->name, current))
         {
+            printf("found\n");
             return paren_dir->inum;
             break;
         }
@@ -78,7 +80,7 @@ find_paren_inode(const char* path)
         inum = lookup(parent_dir, current);
         list = list->next;
         inode *paren_node = get_inode(inum);
-        parent_dir = pages_get_page(paren_node->ptrs[0]);
+        parent_dir = pages_get_page(inum);
         current = list->data;
     }
     return inum;
@@ -102,12 +104,14 @@ tree_lookup(const char* path)
 
     while(list)
     {
+        printf(" ===== paren dir = %s, current = %s\n", parent_dir->name, current);
         inum = lookup(parent_dir, current);
         inode *paren_node = get_inode(inum);
-        parent_dir = pages_get_page(paren_node->ptrs[0]);
+        parent_dir = pages_get_page(inum);
         if((list = list->next))
             current = list->data;
     }
+    printf(" ===== inode number returned for path %s is %d\n", path, inum);
     return inum;
 }
 /*
@@ -129,7 +133,7 @@ int
 directory_put(const char* path, int inum, int pinum)
 {
     inode *paren_node = get_inode(pinum);
-    dirent* dir = pages_get_page(paren_node->ptrs[0]);    // Get the parent directory's page as struct dirent
+    dirent* dir = pages_get_page(pinum);    // Get the parent directory's page as struct dirent
     const char *name = get_name(path);
     int count = dir->entcount;
     // The first entry always hold the number of entries in the directory
@@ -138,6 +142,7 @@ directory_put(const char* path, int inum, int pinum)
     // Make a new entry if one does not already exist
     if(tree_lookup(path) == -ENOENT)
     {
+        printf(" ====== directory entry not found");
         dir->entcount += 1;
         dir = dir + count;
         printf(" ======= dir written at offset: %p\n", dir);
@@ -256,8 +261,13 @@ directory_list(const char *path)
 {
     int inum;
     printf("+ directory_list()\n");
+    printf(" ===== path in list = %s\n", path);
     inum = tree_lookup(path);
+    printf(" ======= list inum = %d\n", inum);   
+    inode *paren_node = get_inode(inum);
     printf(" ======= paren inode: %d\n", inum);
+    printf(" ====== current directory from where ls is called: %s ; inum: %d;", path, inum);
+    printf(" ====== Its page using inum: % ; using node->ptr (%d): %p;", pages_get_page, inum);
     dirent *dir = pages_get_page(inum);    // Current directory from where "ls" is called
     slist *ys = add_files_to_list(dir);
 
