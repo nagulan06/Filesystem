@@ -261,6 +261,8 @@ storage_mknod(const char* path, int mode)
     node->ptrs[0] = alloc_page();
     node->ptrs[1] = -1;
     node->iptr = -1;
+    node->refs = 0;
+   
     // Find the parent inode number (which will be a directory) and increase it's size
     int pinum = find_paren_inode(path);
     inode *paren_node = get_inode(pinum);
@@ -274,8 +276,7 @@ storage_mknod(const char* path, int mode)
 
 slist*
 storage_list(const char* path)
-{
-    printf(" ======== path received = %s\n", path);
+{   
     return directory_list(path);
 }
 
@@ -285,7 +286,7 @@ storage_unlink(const char* path, int mode)
     // Check if such a file exists
     if(tree_lookup(path) == -ENOENT)
     {
-        printf("- error: No such file or directory '%s'\n", get_name(path));
+        printf("--- error: No such file or directory '%s'\n", get_name(path));
         return -ENOENT;
     }
     // If the entry to be deleted is a dierctory (indicated through mode), check if it is empty

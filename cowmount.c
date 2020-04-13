@@ -54,7 +54,8 @@ nufs_readdir(const char *path, void *buf, fuse_fill_dir_t filler,
     for (slist* xs = items; xs != 0; xs = xs->next) {
         printf("+ looking at path: '%s'\n", xs->data);
         strcpy(item_path, path);
-        strcat(item_path, "/");
+        if(!(streq(path, "/")))
+            strcat(item_path, "/");
         strcat(item_path, xs->data);
         rv = storage_stat(item_path, &st);
         assert(rv == 0);
@@ -97,6 +98,7 @@ nufs_unlink(const char *path)
 int
 nufs_link(const char *from, const char *to)
 {
+    printf("--------------LINK\n");
     int rv = -1;
     printf("link(%s => %s) -> %d\n", from, to, rv);
 	return rv;

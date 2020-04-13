@@ -24,27 +24,14 @@ directory_init()
 {
     inode* rn = get_inode(1);   // Update inode structure of root directory
     dirent *dir = pages_get_page(1);
-    printf(" ======= initial address of dir: %p\n", dir);
+    
     dir->entcount = 0;
     if (rn->mode == 0) {
         rn->size = 0;
+        rn->ptrs[0] = 1;    // Root directory always points to page 1.
         rn->mode = 040755;
     }
 }
-
-/*
-int
-directory_lookup(const char* name)
-{
-    for (int ii = 0; ii < 256; ++ii) {
-        char* ent = directory_get(ii);
-        if (streq(ent, name)) {
-            return ii;
-        }
-    }
-    return -ENOENT;
-}
-*/
 
 // Search for current directory in the parent directory
 int 
@@ -52,10 +39,9 @@ lookup(dirent *paren_dir, char *current)
 {
     for(int i = 0; i < 256; i++)
     {
-        printf(" ==== paren dir name = %s, current dir = %s\n", paren_dir->name, current);
+       
         if(streq(paren_dir->name, current))
-        {
-            printf("found\n");
+        {   
             return paren_dir->inum;
             break;
         }
@@ -63,6 +49,8 @@ lookup(dirent *paren_dir, char *current)
     }
     return -ENOENT;
 }
+
+// When given a path to a file, this function finds the parent directory and returns its inode number.
 int 
 find_paren_inode(const char* path)
 {
@@ -80,7 +68,7 @@ find_paren_inode(const char* path)
         inum = lookup(parent_dir, current);
         list = list->next;
         inode *paren_node = get_inode(inum);
-        parent_dir = pages_get_page(inum);
+        parent_dir = pages_get_page(paren_node->ptrs[0]);
         current = list->data;
     }
     return inum;
@@ -104,48 +92,46 @@ tree_lookup(const char* path)
 
     while(list)
     {
-        printf(" ===== paren dir = %s, current = %s\n", parent_dir->name, current);
+       // printf(" ===== name in paren dir = %s, current = %s\n", parent_dir->name, current);
         inum = lookup(parent_dir, current);
         inode *paren_node = get_inode(inum);
-        parent_dir = pages_get_page(inum);
+        parent_dir = pages_get_page(paren_node->ptrs[0]);
         if((list = list->next))
             current = list->data;
     }
-    printf(" ===== inode number returned for path %s is %d\n", path, inum);
+   // printf(" ===== inode number returned for path %s is %d\n", path, inum);
     return inum;
 }
-/*
-int
-directory_put(const char* name, int inum)
-{
-    char* ent = pages_get_page(1) + inum*ENT_SIZE;
-    strlcpy(ent, name, ENT_SIZE);
-    printf("+ dirent = '%s'\n", ent);
 
-    inode* node = get_inode(inum);
-    printf("+ directory_put(..., %s, %d) -> 0\n", name, inum);
-    print_inode(node);
-
-    return 0;
-}
-*/
+// Adds a file/directory entry into the parent directory
 int
 directory_put(const char* path, int inum, int pinum)
 {
-    inode *paren_node = get_inode(pinum);
-    dirent* dir = pages_get_page(pinum);    // Get the parent directory's page as struct dirent
+    dirent *dir;
+    int pnum;
+  //  printf(" ===== this is the parent dir inode num where file is put: %d\n", pinum);
+    if(pinum == 1)
+    {
+        dir = pages_get_page(1);
+        pnum = 1;
+    }
+    else
+    {    
+        inode *paren_node = get_inode(pinum);
+        dir = pages_get_page(paren_node->ptrs[0]);    // Get the parent directory's page as struct dirent
+        pnum = paren_node->ptrs[0];
+    }
+   // printf(" ==== this is where directory is put (%p), page num = %d \n", dir, pnum);
     const char *name = get_name(path);
     int count = dir->entcount;
     // The first entry always hold the number of entries in the directory
-
-    printf(" ====== pinum: %d, its dir: %p\n", pinum, dir);
     // Make a new entry if one does not already exist
     if(tree_lookup(path) == -ENOENT)
     {
-        printf(" ====== directory entry not found");
+     //   printf(" ====== directory entry not found");
         dir->entcount += 1;
         dir = dir + count;
-        printf(" ======= dir written at offset: %p\n", dir);
+     //   printf(" ======= dir written at offset: %p\n", dir);
         // Update the name and inode number of the file to be entered
         strlcpy(dir->name, name, ENT_SIZE);    
         dir->inum = inum;
@@ -174,17 +160,25 @@ directory_put(const char* path, int inum, int pinum)
     return 0;
 }
 
+// Deletes a file/directory entry
 int
 directory_delete(const char* path)
 {
     const char *name = get_name(path);
+    inode *paren_node;
+    dirent *dir;
     printf(" + directory_delete(%s)\n", name);
+
     // Find parent inode value and thus the parent page address
     int pinum = find_paren_inode(path);
-    inode *paren_node = get_inode(pinum);
-    dirent *dir = pages_get_page(paren_node->ptrs[0]);
+    paren_node = get_inode(pinum);
+    paren_node->size -= sizeof(dirent);   // Reduce the parent directory size.
+    dir = pages_get_page(paren_node->ptrs[0]);
+
+    // Reduce the directory entry count by 1
     int count = dir->entcount;
-    dir->entcount -= 1;     // Reduce the entry count by 1.
+    dir->entcount -= 1;
+    
     int pnum = 0, curr_count = 0;
 
     // Now find the file to be deleted and free its corresponding inode and pages
@@ -194,7 +188,6 @@ directory_delete(const char* path)
         // Find the file
         if(streq(dir->name, name))
         {
-            free_inode(dir->inum); // Free its inode
             inode *del_node = get_inode(dir->inum);
             // Free all the pages associated with the inode
             // First free the direct pointers
@@ -215,7 +208,8 @@ directory_delete(const char* path)
                     pnum = data->ipages[i];
                 }
             }
-             
+            del_node->size = 0; // Make size 0
+            free_inode(dir->inum); // Free its inode
             break;
         }
         dir++;
@@ -259,16 +253,27 @@ slist* add_files_to_list(dirent *dir)
 slist*
 directory_list(const char *path)
 {
-    int inum;
+    int inum, pnum;
+    dirent *dir;
     printf("+ directory_list()\n");
-    printf(" ===== path in list = %s\n", path);
+  //  printf(" ===== path in list = %s\n", path);
     inum = tree_lookup(path);
-    printf(" ======= list inum = %d\n", inum);   
+  //  printf(" ======= dir inum = %d\n", inum);   
     inode *paren_node = get_inode(inum);
-    printf(" ======= paren inode: %d\n", inum);
-    printf(" ====== current directory from where ls is called: %s ; inum: %d;", path, inum);
-    printf(" ====== Its page using inum: % ; using node->ptr (%d): %p;", pages_get_page, inum);
-    dirent *dir = pages_get_page(inum);    // Current directory from where "ls" is called
+   // printf(" ======= paren inode: %d\n", inum);
+   // printf(" ====== current directory from where ls is called: %s ; inum: %d;", path, inum);
+   // printf(" ====== Its page using inum: %p ; using node->ptr: %p;", pages_get_page(inum), pages_get_page(paren_node->ptrs[0]));
+    if(inum == 1)
+    {
+        dir = pages_get_page(1);
+        pnum = 1;
+    }
+    else
+    {
+        dir = pages_get_page(paren_node->ptrs[0]);    // Current directory from where "ls" is called
+        pnum = paren_node->ptrs[0];
+    }
+   // printf(" ====== directory being searched page num = %d\n", pnum);
     slist *ys = add_files_to_list(dir);
 
     return ys;
