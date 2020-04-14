@@ -160,6 +160,32 @@ directory_put(const char* path, int inum, int pinum)
     return 0;
 }
 
+void 
+free_all(inode *del_node, int inum)
+{
+    // Free all the pages associated with the inode
+    // First free the direct pointers
+    int pnum = del_node->ptrs[0];
+    free_page(pnum);
+    if((pnum = del_node->ptrs[1]))
+        free_page(pnum);
+    // If indirect pages exist for the file, free all of them
+    if(del_node->iptr)
+    {
+        indirect_pages* data = pages_get_page(del_node->iptr);
+        int i = 0;
+        pnum = data->ipages[i];
+        while(pnum)
+        {
+            i++;
+            free_page(pnum);
+            pnum = data->ipages[i];
+        }
+    }
+    del_node->size = 0; // Make size 0
+    free_inode(inum); // Free its inode
+}
+
 // Deletes a file/directory entry
 int
 directory_delete(const char* path)
@@ -189,27 +215,11 @@ directory_delete(const char* path)
         if(streq(dir->name, name))
         {
             inode *del_node = get_inode(dir->inum);
-            // Free all the pages associated with the inode
-            // First free the direct pointers
-            pnum = del_node->ptrs[0];
-            free_page(pnum);
-            if((pnum = del_node->ptrs[1]))
-                free_page(pnum);
-            // If indirect pages exist for the file, free all of them
-            if(del_node->iptr)
-            {
-                indirect_pages* data = pages_get_page(del_node->iptr);
-                int i = 0;
-                pnum = data->ipages[i];
-                while(pnum)
-                {
-                    i++;
-                    free_page(pnum);
-                    pnum = data->ipages[i];
-                }
-            }
-            del_node->size = 0; // Make size 0
-            free_inode(dir->inum); // Free its inode
+            // If the node has links, do not free the inode and pages associated with it
+            if(del_node->refs == 0)
+                free_all(del_node, dir->inum);
+            else
+                del_node->refs -= 1;            
             break;
         }
         dir++;

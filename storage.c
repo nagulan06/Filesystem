@@ -243,10 +243,10 @@ int
 storage_mknod(const char* path, int mode)
 {
     //printf("++++++ file check: %d  Dir check: %d\n", S_ISREG(mode), S_ISDIR(mode));
-    char* tmp1 = alloca(strlen(path));
-    char* tmp2 = alloca(strlen(path));
-    strcpy(tmp1, path);
-    strcpy(tmp2, path);
+    //char* tmp1 = alloca(strlen(path));
+    //char* tmp2 = alloca(strlen(path));
+    //strcpy(tmp1, path);
+    //strcpy(tmp2, path);
 
     if (tree_lookup(path) != -ENOENT) {
         printf("mknod fail: already exist\n");
@@ -310,8 +310,28 @@ storage_unlink(const char* path, int mode)
 int
 storage_link(const char* from, const char* to)
 {
-    return -ENOENT;
+    // Check if the "from" file exist
+    int inum = tree_lookup(from);
+    if(inum == -ENOENT)
+    {
+        printf(" --Error: No such file or directory\n");
+        return -ENOENT;
+    }
+    // Check if the "to" file exists
+    if (tree_lookup(to) != -ENOENT) {
+        printf("link fail: already exist\n");
+        return -EEXIST;
+    }
+    // Find the parent directory of the file "from" => this is the directory where the to file is to be plcaed
+    // The reference count for the node is incremented.
+    int pinum = find_paren_inode(from);
+    inode *node = get_inode(inum);
+    node->refs += 1;
+    
+    // Directory put is called with the inode number of "from" file.
+    return directory_put(to, inum, pinum);
 }
+        
 
 int
 storage_rename(const char* from, const char* to)
@@ -320,7 +340,7 @@ storage_rename(const char* from, const char* to)
     if (inum == -ENOENT) {
         printf("+ error: rename failed: '%s' no such file or direcory\n", get_name(from));
         return inum;
-    };
+    }
     char *name_from = get_name(from);
     char *name_to = get_name(to);
     int pinum = find_paren_inode(from);

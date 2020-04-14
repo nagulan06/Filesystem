@@ -98,8 +98,7 @@ nufs_unlink(const char *path)
 int
 nufs_link(const char *from, const char *to)
 {
-    printf("--------------LINK\n");
-    int rv = -1;
+    int rv = storage_link(from, to);
     printf("link(%s => %s) -> %d\n", from, to, rv);
 	return rv;
 }
