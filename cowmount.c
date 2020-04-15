@@ -56,14 +56,20 @@ nufs_readdir(const char *path, void *buf, fuse_fill_dir_t filler,
     else
         filler(buf, path, &st, 0);
     */
+   printf(" ====== path to list: %s\n", path);
 
     slist* items = storage_list(path);
+    for (slist* xs = items; xs != 0; xs = xs->next) {
+        printf(" ------ %s\n", xs->data);
+    }
+    
     for (slist* xs = items; xs != 0; xs = xs->next) {
         printf("+ looking at path: '%s'\n", xs->data);
         strcpy(item_path, path);
         if(!(streq(path, "/")))
             strcat(item_path, "/");
         strcat(item_path, xs->data);
+        printf(" ===== item path = %s; xs->data: %s is passed to filler\n", item_path, xs->data);
         rv = storage_stat(item_path, &st);
         assert(rv == 0);
         filler(buf, xs->data, &st, 0);

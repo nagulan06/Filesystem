@@ -1,2 +1,0 @@
-fusermount: failed to access mountpoint /home/nagulan/Documents/hw12/starter-cow/mnt: Permission denied
-make: *** [Makefile:30: mount] Error 1

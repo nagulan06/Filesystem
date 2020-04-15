@@ -243,10 +243,11 @@ slist* add_files_to_list(dirent *dir)
     slist *list = 0;
     slist *direc = 0;
     // Loop through the directory and find all the files in it and add it to the slist
-    dirent *count_dir = pages_get_page(1);
-    int count = count_dir->entcount;
+    int count = dir->entcount;
+    printf(" ======== count = %d\n", count);
     for(int i = 0; i<count; i++)
     {
+        printf("======= name added to the list is %s\n", dir->name);
         list = s_cons(dir->name, list);
         node = get_inode(dir->inum);
         // If the current entry is a directory, add it to another list
