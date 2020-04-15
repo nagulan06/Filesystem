@@ -19,5 +19,8 @@ int    storage_link(const char *from, const char *to);
 int    storage_rename(const char *from, const char *to);
 int    storage_set_time(const char* path, const struct timespec ts[2]);
 slist* storage_list(const char* path);
+int    storage_symlink(const char *target, const char *linkpath, int mode);
+int    storage_readlink(const char *pathname, char *buf, size_t bufsiz);
+int    storage_chmod(const char *path, mode_t mode);
 
 #endif

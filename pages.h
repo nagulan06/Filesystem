@@ -3,11 +3,14 @@
 
 #include <stdio.h>
 
+// Indirect pages is meant to hold the list of pages to which the files are mapped to
+// This page being 4k, can hold 1024 integers. But we have only 128 inodes (so max. 128 page numbers to hold). So a lot of space is free here
+// Hence, some stuff like 'count values' that can help implement read and write easily are stored here for reference
 typedef struct indirect_pages
 {
     int ipages[256];    // The pages to which the file is mapped to
-    int sizes[256];     // Size stored in each page
     int count;          // The number of pages to which the file is mapped to
+    int total_count;;
 }indirect_pages;
 
 void pages_init(const char* path, int create);

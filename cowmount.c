@@ -4,6 +4,7 @@
 #include <sys/types.h>
 #include <errno.h>
 #include <sys/stat.h>
+#include <time.h>
 #include <dirent.h>
 #include <bsd/string.h>
 #include <assert.h>
@@ -49,6 +50,12 @@ nufs_readdir(const char *path, void *buf, fuse_fill_dir_t filler,
     assert(rv == 0);
 
     filler(buf, ".", &st, 0);
+    /*
+    if(path == "/")
+        filler(buf, ".", &st, 0);
+    else
+        filler(buf, path, &st, 0);
+    */
 
     slist* items = storage_list(path);
     for (slist* xs = items; xs != 0; xs = xs->next) {
@@ -104,6 +111,22 @@ nufs_link(const char *from, const char *to)
 }
 
 int
+nufs_symlink(const char *target, const char *linkpath)
+{
+    int rv = storage_symlink(target, linkpath, S_IFLNK|33279); 
+    // S_IFLNK indicates this file is a link and 33279 is the decimal equivalent of (100777 => file with all permissions)
+    return rv;
+}
+
+int
+nufs_readlink(const char *pathname, char *buf, size_t bufsiz)
+{
+    printf(" ======= Path in readlink: %s\n", pathname);
+    int rv = storage_readlink(pathname, buf, bufsiz);
+    return rv;
+}
+
+int
 nufs_rmdir(const char *path)
 {
     int rv;
@@ -127,7 +150,7 @@ nufs_rename(const char *from, const char *to)
 int
 nufs_chmod(const char *path, mode_t mode)
 {
-    int rv = -1;
+    int rv = storage_chmod(path, mode);
     printf("chmod(%s, %04o) -> %d\n", path, mode, rv);
     return rv;
 }
@@ -176,6 +199,10 @@ nufs_utimens(const char* path, const struct timespec ts[2])
     int rv = storage_set_time(path, ts);
     printf("utimens(%s, [%ld, %ld; %ld %ld]) -> %d\n",
            path, ts[0].tv_sec, ts[0].tv_nsec, ts[1].tv_sec, ts[1].tv_nsec, rv);
+    struct timespec time; 
+    clock_gettime(CLOCK_REALTIME, &time); 
+    printf("%ld\n", time.tv_sec);
+    printf(" ====== sec, nsec: %ld, %ld\n", time.tv_sec, time.tv_nsec);
 	return rv;
 }
 
@@ -209,6 +236,8 @@ nufs_init_ops(struct fuse_operations* ops)
     ops->write    = nufs_write;
     ops->utimens  = nufs_utimens;
     ops->ioctl    = nufs_ioctl;
+    ops->symlink  = nufs_symlink;
+    ops->readlink = nufs_readlink;
 };
 
 struct fuse_operations nufs_ops;

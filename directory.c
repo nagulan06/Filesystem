@@ -37,7 +37,7 @@ directory_init()
 int 
 lookup(dirent *paren_dir, char *current)
 {
-    for(int i = 0; i < 256; i++)
+    for(int i = 0; i < 127; i++)
     {
        
         if(streq(paren_dir->name, current))
@@ -109,7 +109,7 @@ directory_put(const char* path, int inum, int pinum)
 {
     dirent *dir;
     int pnum;
-  //  printf(" ===== this is the parent dir inode num where file is put: %d\n", pinum);
+    printf(" ===== this is the parent dir inode num where file is put: %d\n", pinum);
     if(pinum == 1)
     {
         dir = pages_get_page(1);
@@ -131,7 +131,7 @@ directory_put(const char* path, int inum, int pinum)
      //   printf(" ====== directory entry not found");
         dir->entcount += 1;
         dir = dir + count;
-     //   printf(" ======= dir written at offset: %p\n", dir);
+       printf(" ======= dir written at offset: %p\n", dir);
         // Update the name and inode number of the file to be entered
         strlcpy(dir->name, name, ENT_SIZE);    
         dir->inum = inum;
@@ -167,19 +167,20 @@ free_all(inode *del_node, int inum)
     // First free the direct pointers
     int pnum = del_node->ptrs[0];
     free_page(pnum);
-    if((pnum = del_node->ptrs[1]))
+    if((pnum = del_node->ptrs[1]) != -1)
         free_page(pnum);
     // If indirect pages exist for the file, free all of them
-    if(del_node->iptr)
+    if(del_node->iptr != -1)
     {
-        indirect_pages* data = pages_get_page(del_node->iptr);
-        int i = 0;
-        pnum = data->ipages[i];
-        while(pnum)
+        indirect_pages* ipage = pages_get_page(del_node->iptr);
+        int i = 2;
+        // Total number of pages this file is mapped to, indirectly
+        int count = ipage->total_count;
+        while(i<count+2)
         {
+            int pn = inode_get_pnum(del_node, i);
+            free_page(pn);
             i++;
-            free_page(pnum);
-            pnum = data->ipages[i];
         }
     }
     del_node->size = 0; // Make size 0
@@ -226,7 +227,7 @@ directory_delete(const char* path)
     }
 
     // Now move all the dirent entries up to overwrite current file's entry
-    for(int i = curr_count; i < count; i++)
+    for(int i = curr_count; i < count+1; i++)
     {
         *dir = *(dir+1);
         dir++;

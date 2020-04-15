@@ -52,3 +52,17 @@ print_inode(inode* node)
     }
 }
 
+// This function returns the exact page number of the page number index is given
+int inode_get_pnum(inode* node, int fpn)
+{
+    if(fpn == 0)
+        return node->ptrs[0];
+    if(fpn == 1)
+        return node->ptrs[1];
+    // If fpn is greater than 1, it has to be fetched from the indirect page.
+    if(fpn > 1)
+    {
+        indirect_pages *ipage = pages_get_page(node->iptr);
+        return ipage->ipages[fpn-2];
+    }
+}
