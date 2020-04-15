@@ -25,6 +25,7 @@ int find_paren_inode(const char* path);
 slist* directory_list(const char *path);
 void print_directory();
 int is_empty(char *path);
+slist* nested_list(const char *path);
 
 #endif
 

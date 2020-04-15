@@ -22,5 +22,6 @@ slist* storage_list(const char* path);
 int    storage_symlink(const char *target, const char *linkpath, int mode);
 int    storage_readlink(const char *pathname, char *buf, size_t bufsiz);
 int    storage_chmod(const char *path, mode_t mode);
+slist* image_list(const char *path);
 
 #endif

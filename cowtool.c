@@ -14,11 +14,13 @@ image_ls_tree(const char* base)
 {
     struct stat st;
     slist* zs = 0;
-    slist* xs = storage_list(base);
+    slist* xs = image_list(base);
     for (; xs; xs = xs->next) {
+        printf(" ----------- %s\n", xs->data);
         char* path = path_join(base, xs->data);
         zs = s_cons(path, zs);
     }
+
     return zs;
 }
 

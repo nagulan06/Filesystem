@@ -244,40 +244,27 @@ slist* add_files_to_list(dirent *dir)
     slist *direc = 0;
     // Loop through the directory and find all the files in it and add it to the slist
     int count = dir->entcount;
-    printf(" ======== count = %d\n", count);
     for(int i = 0; i<count; i++)
     {
-        printf("======= name added to the list is %s\n", dir->name);
         list = s_cons(dir->name, list);
         node = get_inode(dir->inum);
-        // If the current entry is a directory, add it to another list
-        if(node->mode == 040755)
-        {
-            printf(" ==== %s is a directory\n", dir->name);    
-        }
         dir++;
     }
     list = s_rev_free(list);
     return list;
 }
 
-
 slist*
 directory_list(const char *path)
 {
     int inum, pnum;
     dirent *dir;
-    printf("+ directory_list()\n");
-  //  printf(" ===== path in list = %s\n", path);
-    inum = tree_lookup(path);
-  //  printf(" ======= dir inum = %d\n", inum);   
+    inum = tree_lookup(path); 
     inode *paren_node = get_inode(inum);
-   // printf(" ======= paren inode: %d\n", inum);
-   // printf(" ====== current directory from where ls is called: %s ; inum: %d;", path, inum);
-   // printf(" ====== Its page using inum: %p ; using node->ptr: %p;", pages_get_page(inum), pages_get_page(paren_node->ptrs[0]));
     if(inum == 1)
     {
         dir = pages_get_page(1);
+        
         pnum = 1;
     }
     else
@@ -285,12 +272,54 @@ directory_list(const char *path)
         dir = pages_get_page(paren_node->ptrs[0]);    // Current directory from where "ls" is called
         pnum = paren_node->ptrs[0];
     }
-   // printf(" ====== directory being searched page num = %d\n", pnum);
     slist *ys = add_files_to_list(dir);
 
     return ys;
 }
 
+slist*
+nested_list(const char *path)
+{
+    int inum, pnum;
+    dirent *dir;
+    printf("+ image_list()\n");
+    inum = tree_lookup(path); 
+    inode *paren_node = get_inode(inum);
+    if(inum == 1)
+    {
+        dir = pages_get_page(1);
+    }
+    else
+    {
+        dir = pages_get_page(paren_node->ptrs[0]);    // Current directory from where "ls" is called
+        pnum = paren_node->ptrs[0];
+    }
+
+    inode *node;
+    slist *list = 0;
+    slist *direc = 0;
+    // Loop through the directory and find all the files in it and add it to the slist
+    int count = dir->entcount;
+    
+    for(int i = 0; i<count; i++)
+    {
+        list = s_cons(dir->name, list);
+        node = get_inode(dir->inum);
+        // If the current entry is a directory, add it to another list
+        if(node->mode == 040755)
+        {
+            char* rec_path = alloca(strlen(path));
+            strcpy(rec_path, path);
+            if(!(streq(rec_path, "/")))
+                strcat(rec_path, "/");
+            strcat(rec_path, dir->name);
+            list = s_concat(list, nested_list(rec_path));    
+        }
+        dir++;
+    }
+    list = s_rev_free(list);
+    return list;
+}
 void
 print_directory(inode* dd)
 {

@@ -428,6 +428,12 @@ storage_list(const char* path)
     return directory_list(path);
 }
 
+slist*
+image_list(const char *path)
+{
+    return nested_list(path);
+}
+
 int
 storage_unlink(const char* path, int mode)
 {
